@@ -1,7 +1,6 @@
 from datetime import datetime
 import random
-
-database = {}
+import db
 
 current_user = None
 
@@ -25,21 +24,34 @@ def init():
 
 def login():
 	global current_user
-	email = input("Enter email: ")
-	password = input("Enter password: ")
+	try:
+		email = input("Enter email: ")
+		password = input("Enter password: ")
 
-	user = database.get(email)
+		user = db.login(email, password)
 
-	if(user and user['password'] == password):
-		current_user = user
-		print(f"Welcome {current_user['first_name']}")
-		print(f"Current time is {datetime.now().strftime('%c')}")
-		operations()
-	else:
-		print("Invalid email or password")
-		print()
-		init()
+		if(user):
+			current_user = user
+			print(f"Welcome {current_user['first_name']}")
+			print(f"Current time is {datetime.now().strftime('%c')}")
+			operations()
+		else:
+			print("Invalid email or password")
+			print()
+			init()
+	except:
+		print("something went wrong")
 
+
+# update the state of the current user after a change is made
+def update_user(email):
+	global current_user
+	try:
+		user = db.read(email)
+		if user:
+			current_user = user
+	except:
+		print("something went wrong")
 
 
 def logout():
@@ -50,26 +62,33 @@ def logout():
 
 def register():
 	global current_user
+	try:
+		email = input("Enter your email: ")
+		first_name = input("Enter your first name: ")
+		last_name = input("Enter your last name: ")
+		password = input("Enter your password: ")
+		acc_num = account_number()
 
-	email = input("Enter your email: ")
-	first_name = input("Enter your first name: ")
-	last_name = input("Enter your last name: ")
-	password = input("Enter your password: ")
-	acc_num = account_number()
+		new_user = {
+			"first_name": first_name,
+			"last_name": last_name,
+			"password": password,
+			"account_number": acc_num,
+			"email": email,
+			"balance": 0
+		}
 
-	database[email] = {
-		"first_name": first_name,
-		"last_name": last_name,
-		"password": password,
-		"account_number": acc_num,
-		"email": email,
-		"balance": 0
-	}
+		created = db.create_user(email, new_user)
 
-	current_user = database[email]
-	print(f"Welcome {current_user['first_name']}")
-	print(f"Current time is {datetime.now().strftime('%c')}")
-	operations()
+		if(created):
+			current_user = new_user
+			print(f"Welcome {current_user['first_name']}")
+			print(f"Current time is {datetime.now().strftime('%c')}")
+			operations()
+		else:
+			init()
+	except:
+		print("something went wrong")
 
 
 def account_number():
@@ -78,35 +97,70 @@ def account_number():
 
 
 def withdraw():
-	amount = int(input("How much will you like to withdraw? "))
-	if(current_user['balance'] > amount):
-		current_user['balance'] -= amount 
-		database.update({current_user['email']: current_user})
-		print("Here is your cash")
-		print("current balance is %d" % current_user['balance'])
-		operations()
-	else:
-		print("Not enough balance")
-		operations()
+	try:
+		amount = int(input("How much will you like to withdraw? "))
+		if(current_user['balance'] > amount):
+			current_user['balance'] -= amount 
+			updated = db.update_user(current_user['email'], current_user)
+			if updated:
+				update_user(current_user["email"])
+				print("Here is your cash")
+				print("current balance is %d" % current_user['balance'])
+			operations()
+		else:
+			print("Not enough balance")
+			operations()
+	except:
+		print("something went wrong")
 
 
 def deposit():
-	amount = int(input("How much will you like to deposit? "))
-	current_user['balance'] += amount 
-	database.update({current_user['email']: current_user})
-	print("current balance is %d" % current_user['balance'])
-	operations()
+	try:
+		amount = int(input("How much will you like to deposit? "))
+		current_user['balance'] += amount 
+		updated = db.update_user(current_user['email'], current_user)
+		if updated:
+			update_user(current_user['email'])
+			print("current balance is %d" % current_user['balance'])
+		operations()
+	except:
+		print("something went wrong")
 
 
 def complaint():
-	complaint = input("What issue do you want to report? ")
-	print("Thanks for contacting us")
-	operations()
+	try:
+		complaint = input("What issue do you want to report? ")
+		print("Thanks for contacting us")
+		operations()
+	except:
+		print("something went wrong")
 
 
 def checkBalance():
-	print("current balance is %d" % current_user['balance'])
-	operations()
+	try:
+		print("current balance is %d" % current_user['balance'])
+		operations()
+	except:
+		print("something went wrong")
+
+
+def delete_account():
+	try:
+		print()
+		print("Are you sure u want to delete your account?")
+		print("1. Yes \n2. No ")
+		print()
+
+		selection = int(input("Select an option: "))
+
+		if(selection == 1):
+			deleted = db.delete_user(current_user["email"])
+			if deleted:
+				print("Hope to see you again soon")
+		else:
+			operations()
+	except:
+		print("Something went wrong")
 
 
 
@@ -120,6 +174,7 @@ def operations():
 		print("3. Complaint")
 		print("4. Check Balance")
 		print("5. Logout")
+		print("6. Delete Account")
 		print()
 
 		selection = int(input("What do you want to do? "))
@@ -134,6 +189,8 @@ def operations():
 			checkBalance()
 		elif(selection == 5):
 			logout()
+		elif(selection == 6):
+			delete_account()
 		else:
 			operations()
 	else:
